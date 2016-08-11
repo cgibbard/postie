@@ -19,7 +19,6 @@ import Web.Postie.Pipes
 import qualified Pipes.Parse as P
 import qualified Network.TLS as TLS
 
-import Control.Applicative
 import Control.Monad.Reader
 import Control.Monad.State
 

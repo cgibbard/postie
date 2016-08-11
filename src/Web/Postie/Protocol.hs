@@ -21,11 +21,10 @@ import Prelude hiding (takeWhile)
 
 import Web.Postie.Address
 
-import Data.Attoparsec.Char8
+import Data.Attoparsec.ByteString.Char8
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 
-import Control.Applicative
 import Control.Monad (void)
 
 data TlsStatus = Active | Forbidden | Permitted | Required deriving (Eq)
@@ -75,35 +74,35 @@ initSmtpFSM :: SmtpFSM
 initSmtpFSM = SmtpFSM (handleSmtpCmd Unknown)
 
 handleSmtpCmd :: SessionState -> Command -> TlsStatus -> (Event, SmtpFSM)
-handleSmtpCmd st cmd tlsSt = match tlsSt st cmd
+handleSmtpCmd st cmd tlsSt = matchEvent tlsSt st cmd
   where
-    match :: TlsStatus -> SessionState -> Command -> (Event, SmtpFSM)
-    match _         HaveQuit  _            = undefined
-    match _         HaveData  Data         = undefined
-    match _         _         Quit         = trans (HaveQuit, WantQuit)
-    match _         Unknown   (Helo x)     = trans (HaveHelo, SayHelo x)
-    match _         _         (Helo x)     = event (SayHeloAgain x)
-    match _         Unknown   (Ehlo x)     = trans (HaveEhlo, SayEhlo x)
-    match _         _         (Ehlo x)     = event (SayEhloAgain x)
-    match Required  _         (MailFrom _) = event NeedStartTlsFirst
-    match _         Unknown   (MailFrom _) = event NeedHeloFirst
-    match _         _         (MailFrom x) = trans (HaveMailFrom, SetMailFrom x)
-    match Required  _         (RcptTo _)   = event NeedStartTlsFirst
-    match _         Unknown   (RcptTo _)   = event NeedHeloFirst
-    match _         HaveHelo  (RcptTo _)   = event NeedMailFromFirst
-    match _         HaveEhlo  (RcptTo _)   = event NeedMailFromFirst
-    match _         _         (RcptTo x)   = trans (HaveRcptTo, AddRcptTo x)
-    match Required  _            Data      = event NeedStartTlsFirst
-    match _         Unknown      Data      = event NeedHeloFirst
-    match _         HaveHelo     Data      = event NeedMailFromFirst
-    match _         HaveEhlo     Data      = event NeedMailFromFirst
-    match _         HaveMailFrom Data      = event NeedRcptToFirst
-    match _         HaveRcptTo   Data      = trans (HaveData, StartData)
-    match Required  _           Rset       = event NeedStartTlsFirst
-    match _         _           Rset       = trans (HaveHelo, WantReset)
-    match Active    _           StartTls   = event TlsAlreadyActive
-    match Forbidden _           StartTls   = event TlsNotSupported
-    match _         _           StartTls   = trans (Unknown, WantTls)
+    matchEvent :: TlsStatus -> SessionState -> Command -> (Event, SmtpFSM)
+    matchEvent _         HaveQuit  _            = undefined
+    matchEvent _         HaveData  Data         = undefined
+    matchEvent _         _         Quit         = trans (HaveQuit, WantQuit)
+    matchEvent _         Unknown   (Helo x)     = trans (HaveHelo, SayHelo x)
+    matchEvent _         _         (Helo x)     = event (SayHeloAgain x)
+    matchEvent _         Unknown   (Ehlo x)     = trans (HaveEhlo, SayEhlo x)
+    matchEvent _         _         (Ehlo x)     = event (SayEhloAgain x)
+    matchEvent Required  _         (MailFrom _) = event NeedStartTlsFirst
+    matchEvent _         Unknown   (MailFrom _) = event NeedHeloFirst
+    matchEvent _         _         (MailFrom x) = trans (HaveMailFrom, SetMailFrom x)
+    matchEvent Required  _         (RcptTo _)   = event NeedStartTlsFirst
+    matchEvent _         Unknown   (RcptTo _)   = event NeedHeloFirst
+    matchEvent _         HaveHelo  (RcptTo _)   = event NeedMailFromFirst
+    matchEvent _         HaveEhlo  (RcptTo _)   = event NeedMailFromFirst
+    matchEvent _         _         (RcptTo x)   = trans (HaveRcptTo, AddRcptTo x)
+    matchEvent Required  _            Data      = event NeedStartTlsFirst
+    matchEvent _         Unknown      Data      = event NeedHeloFirst
+    matchEvent _         HaveHelo     Data      = event NeedMailFromFirst
+    matchEvent _         HaveEhlo     Data      = event NeedMailFromFirst
+    matchEvent _         HaveMailFrom Data      = event NeedRcptToFirst
+    matchEvent _         HaveRcptTo   Data      = trans (HaveData, StartData)
+    matchEvent Required  _           Rset       = event NeedStartTlsFirst
+    matchEvent _         _           Rset       = trans (HaveHelo, WantReset)
+    matchEvent Active    _           StartTls   = event TlsAlreadyActive
+    matchEvent Forbidden _           StartTls   = event TlsNotSupported
+    matchEvent _         _           StartTls   = trans (Unknown, WantTls)
 
     event :: Event -> (Event, SmtpFSM)
     event e = (e, SmtpFSM (handleSmtpCmd st))
